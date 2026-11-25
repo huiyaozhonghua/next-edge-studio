@@ -62,14 +62,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Probe condition
-        if: ${{ github.actor != 'nobody' }}
-        run: echo probe
-
-      - name: Build and push to Docker Hub
-        if: ${{ github.repository_owner != 'nobody' }}
-        run: echo "docker hub probe"
-
       - name: Set package visibility to public
         # GHCR 新包默认 private；SoloHost 用户必须能匿名 pull，否则装不了
         run: |
@@ -128,3 +120,17 @@ jobs:
             echo "  ❌ 匿名拉取失败 (HTTP ${CODE})"
             exit 1
           fi
+
+# ─────────────────────────────────────────────────────────────
+# Docker Hub 备用通道说明
+#
+# 为什么不放在本文件里用 `if: ${{ secrets.DOCKERHUB_USERNAME != '' }}` 判断？
+#   因为 secrets.* 上下文在 **workflow 定义阶段** 求值 —— 当该 secret 尚未创建时，
+#   求值失败会让整个 workflow 解析失败（表现为 GitHub 把 workflow 的 name
+#   回退成文件路径，且 workflow_dispatch 报 422 "does not have trigger"）。
+#   已实测确认：把 if: 里的 secrets.* 换成 github.* 即可正常解析。
+#
+# 正确做法：用独立的 dockerhub.yml，通过手动触发（workflow_dispatch）触发，
+#         token 存在时自然成功；不存在时 docker/login-action 会明确报错。
+#         推送到 Docker Hub: bash publish_studio.sh --hub
+# ─────────────────────────────────────────────────────────────

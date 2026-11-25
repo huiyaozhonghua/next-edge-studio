@@ -1,0 +1,80 @@
+name: Build and Push to Docker Hub
+
+# 独立的 Docker Hub 通道。
+#
+# 为什么不用 `if: ${{ secrets.DOCKERHUB_USERNAME != '' }}` 判断 secret 是否存在？
+#   因为 secrets.* 上下文在 **workflow 定义阶段**求值 —— 当该 secret 尚未创建时，
+#   求值失败会让整个 workflow 解析失败：
+#     · GitHub 把 workflow 的 name 回退成文件路径
+#     · workflow_dispatch 报 422 "does not have 'workflow_dispatch' trigger"
+#   实测确认：把 if: 里的 secrets.* 换成 github.* 即可正常解析。
+#
+# 所以这里不用 if 判断 —— 手动触发本 workflow 即可：
+#   配好 secret 后 → bash publish_studio.sh --hub
+#   没配 secret   → docker/login-action 会明确报错，不会静默失败。
+
+on:
+  workflow_dispatch:
+
+jobs:
+  push-dockerhub:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Derive version tag
+        id: meta
+        run: |
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-${SHA}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            docker.io/${{ secrets.DOCKERHUB_IMAGE }}:${{ steps.meta.outputs.version }}
+            docker.io/${{ secrets.DOCKERHUB_IMAGE }}:latest
+          build-args: |
+            PIPER_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx
+            PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify anonymous pull
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_IMAGE }}
+        run: |
+          set -uo pipefail
+          echo "--- anonymous pull test: docker.io/${IMAGE}:latest ---"
+          docker logout docker.io 2>/dev/null || true
+          if docker pull "docker.io/${IMAGE}:latest" 2>&1 | tail -2; then
+            echo "  ✅ 匿名可拉 —— 用户可以直接 docker pull"
+          else
+            echo "  ❌ 匿名拉取失败 —— 检查 Docker Hub 仓库可见性是否为 Public"
+            echo "     https://hub.docker.com/r/${IMAGE%%/*}/$(basename ${IMAGE}) → Settings → General → Repository visibility → Public"
+            exit 1
+          fi
