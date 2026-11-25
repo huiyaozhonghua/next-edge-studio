@@ -71,3 +71,52 @@ jobs:
             -f visibility=public 2>/dev/null || \
           echo "⚠️ 自动改可见性失败，请手动设置："
           echo "   https://github.com/users/${GITHUB_ACTOR}/packages → $IMAGE_NAME → Package settings → Danger Zone → Public"
+
+      - name: Verify package is publicly pullable
+        # Docker 的真实拉取流程：先匿名取 pull token，再用 token 取 manifest。
+        # 只测 manifest 会误判 —— manifest 接口本身要求带 token。
+        env:
+          IMAGE_NAME: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          PKG="${IMAGE_NAME##*/}"
+          OWNER="${IMAGE_NAME%%/*}"
+
+          echo "--- package metadata ---"
+          gh api "/users/${OWNER}/packages/container/${PKG}" \
+            --jq '"name: \(.name)\nvisibility: \(.visibility)\ntype: \(.package_type)"' 2>&1 || true
+
+          echo "--- anonymous pull flow (same as docker pull) ---"
+          PULL_TOKEN=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${OWNER}/${PKG}:pull" \
+            | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))" 2>/dev/null)
+          if [ -z "$PULL_TOKEN" ]; then
+            echo "  ❌ 匿名取 pull token 失败 —— 包未开放匿名拉取"
+            echo "     https://github.com/users/${OWNER}/packages → ${PKG} → Package settings → Danger Zone → Public"
+            exit 1
+          fi
+          echo "  ✅ 匿名取到 pull token (len=${#PULL_TOKEN})"
+
+          ACCEPT="application/vnd.oci.image.manifest.v1+json,application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.docker.distribution.manifest.list.v2+json"
+          CODE=$(curl -s -o /tmp/manifest.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${PULL_TOKEN}" \
+            -H "Accept: ${ACCEPT}" \
+            "https://ghcr.io/v2/${OWNER}/${PKG}/manifests/latest")
+          echo "  manifest(latest) -> HTTP ${CODE}"
+
+          echo "--- available tags ---"
+          curl -s -H "Authorization: Bearer ${PULL_TOKEN}" -H "Accept: ${ACCEPT}" \
+            "https://ghcr.io/v2/${OWNER}/${PKG}/tags/list" \
+            | python3 -c "import sys,json;d=json.load(sys.stdin);print('  tags:', ', '.join(d.get('tags') or ['(空)']))" 2>/dev/null || echo "  (取不到)"
+
+          echo "--- docker pull without login ---"
+          docker logout ghcr.io 2>/dev/null || true
+          docker pull "ghcr.io/${OWNER}/${PKG}:latest" 2>&1 | tail -2
+
+          echo "--- verdict ---"
+          if [ "${CODE}" = "200" ]; then
+            echo "  ✅ 匿名可拉 —— 任何 Pi 节点用户都能安装"
+            echo "  ✅ 镜像地址: ghcr.io/${OWNER}/${PKG}:latest"
+          else
+            echo "  ❌ 匿名拉取失败 (HTTP ${CODE})"
+            exit 1
+          fi
