@@ -9,13 +9,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  # Docker Hub 镜像（可选推送）。需要仓库 Settings → Secrets 里配：
-  #   DOCKERHUB_USERNAME  —— Docker Hub 用户名
-  #   DOCKERHUB_TOKEN    —— Docker Hub Access Token (Read & Write)
-  #   DOCKERHUB_IMAGE    —— 形如 <用户名>/next-edge-studio（放在 Actions Variables 里）
-  # 注意：这里不用 ${{ vars.X || Y }} 这种带 || 的表达式 —— 会让 GitHub 的
-  # workflow 解析器把 on: 段判错，表现为「找不到 workflow_dispatch 触发器」。
-  DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
 
 jobs:
   build:
@@ -42,14 +35,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        # 仅当配置了凭据时才执行；没有则只推 GHCR
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Derive version tag
         id: meta
         run: |
@@ -62,7 +47,7 @@ jobs:
           echo "sha=${SHA}"      >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push to GHCR
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -71,23 +56,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          build-args: |
-            PIPER_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx
-            PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push to Docker Hub
-        # Docker Hub 是 GHCR 的备用分发通道（国内网络 ghcr.io 被 SNI 封锁时用）
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: |
-            docker.io/${{ env.DOCKERHUB_IMAGE }}:${{ steps.meta.outputs.version }}
-            docker.io/${{ env.DOCKERHUB_IMAGE }}:latest
           build-args: |
             PIPER_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx
             PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json
