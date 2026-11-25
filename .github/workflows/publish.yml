@@ -67,8 +67,8 @@ jobs:
         run: echo probe
 
       - name: Build and push to Docker Hub
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
-        run: echo "docker hub: ${{ secrets.DOCKERHUB_IMAGE }}"
+        if: ${{ github.repository_owner != 'nobody' }}
+        run: echo "docker hub probe"
 
       - name: Set package visibility to public
         # GHCR 新包默认 private；SoloHost 用户必须能匿名 pull，否则装不了
