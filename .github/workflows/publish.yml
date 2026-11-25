@@ -12,7 +12,10 @@ env:
   # Docker Hub 镜像（可选推送）。需要仓库 Settings → Secrets 里配：
   #   DOCKERHUB_USERNAME  —— Docker Hub 用户名
   #   DOCKERHUB_TOKEN    —— Docker Hub Access Token (Read & Write)
-  DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE || github.repository }}
+  #   DOCKERHUB_IMAGE    —— 形如 <用户名>/next-edge-studio（放在 Actions Variables 里）
+  # 注意：这里不用 ${{ vars.X || Y }} 这种带 || 的表达式 —— 会让 GitHub 的
+  # workflow 解析器把 on: 段判错，表现为「找不到 workflow_dispatch 触发器」。
+  DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
 
 jobs:
   build:
