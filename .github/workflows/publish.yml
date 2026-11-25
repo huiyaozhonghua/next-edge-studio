@@ -68,13 +68,7 @@ jobs:
 
       - name: Build and push to Docker Hub
         if: ${{ secrets.DOCKERHUB_USERNAME != null }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: |
-            docker.io/${{ secrets.DOCKERHUB_IMAGE }}:latest
+        run: echo "docker hub: ${{ secrets.DOCKERHUB_IMAGE }}"
 
       - name: Set package visibility to public
         # GHCR 新包默认 private；SoloHost 用户必须能匿名 pull，否则装不了
