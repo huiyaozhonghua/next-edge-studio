@@ -9,6 +9,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
 
 jobs:
   build:
@@ -77,6 +78,7 @@ jobs:
         # 只测 manifest 会误判 —— manifest 接口本身要求带 token。
         env:
           IMAGE_NAME: ${{ github.repository }}
+  DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_IMAGE }}
         run: |
           set -uo pipefail
           PKG="${IMAGE_NAME##*/}"
