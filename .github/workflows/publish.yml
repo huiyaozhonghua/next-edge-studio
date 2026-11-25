@@ -67,7 +67,7 @@ jobs:
         run: echo probe
 
       - name: Build and push to Docker Hub
-        if: ${{ secrets.DOCKERHUB_USERNAME != null }}
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
         run: echo "docker hub: ${{ secrets.DOCKERHUB_IMAGE }}"
 
       - name: Set package visibility to public
