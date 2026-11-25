@@ -2,11 +2,6 @@ name: Verify published package
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - 'Build and Push Next Edge Studio image'
-    types:
-      - completed
 
 jobs:
   verify:
@@ -22,7 +17,7 @@ jobs:
         run: |
           set -uo pipefail
           PKG="${IMAGE_NAME##*/}"
-          OWNER="${IMAGE_NAME%%*/}"
+          OWNER="${IMAGE_NAME%%/*}"
           echo "Checking ghcr.io/$OWNER/$PKG ..."
 
           # 1) 包元数据
@@ -33,12 +28,13 @@ jobs:
           # 2) Docker 的真实拉取流程：
           #    a) 匿名取 pull token
           #    b) 用该 token 取 manifest
-          #    只测 manifest 而不测 token 会误判 —— 因为 manifest 接口本身要求带 token
+          #    只测 manifest 而不测 token 会误判 —— manifest 接口本身要求带 token
           echo "--- anonymous pull flow (same as docker pull) ---"
           PULL_TOKEN=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${OWNER}/${PKG}:pull" \
             | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))" 2>/dev/null)
           if [ -z "$PULL_TOKEN" ]; then
             echo "  ❌ 匿名取 pull token 失败 —— 包未开放匿名拉取"
+            echo "     https://github.com/users/${OWNER}/packages → ${PKG} → Package settings → Danger Zone → Public"
             exit 1
           fi
           echo "  ✅ 匿名取到 pull token (len=${#PULL_TOKEN})"
@@ -71,23 +67,23 @@ if 'config' in d:
           if [ "${CODE}" = "200" ]; then
             echo "  ✅ 匿名可拉 —— 任何 Pi 节点用户都能安装"
             echo "  ✅ 镜像地址: ghcr.io/${OWNER}/${PKG}:latest"
-            exit 0
           else
             echo "  ❌ 匿名拉取失败 (HTTP ${CODE}) —— 检查包可见性是否为 Public"
             echo "     https://github.com/users/${OWNER}/packages → ${PKG} → Package settings → Danger Zone → Public"
             exit 1
           fi
 
-      - name: End-to-end pull test
+      - name: End-to-end docker pull (anonymous)
         env:
           IMAGE_NAME: ${{ github.repository }}
         run: |
           set -uo pipefail
           OWNER="${IMAGE_NAME%%/*}"
           PKG="${IMAGE_NAME##*/}"
-          echo "--- docker pull (no login) ---"
-          if docker pull "ghcr.io/${OWNER}/${PKG}:latest" 2>&1 | tail -3; then
-            echo "  ✅ docker 匿名拉取成功"
+          echo "--- docker pull without login ---"
+          docker logout ghcr.io 2>/dev/null || true
+          if docker pull "ghcr.io/${OWNER}/${PKG}:latest" 2>&1 | tail -2; then
+            echo "  ✅ docker 匿名拉取成功 —— 用户可以直接安装"
           else
-            echo "  ⚠️  docker pull 失败（runner 上可能需要 logout 确保匿名）"
+            echo "  ⚠️  docker pull 失败"
           fi
