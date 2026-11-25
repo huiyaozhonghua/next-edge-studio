@@ -47,7 +47,7 @@ jobs:
           echo "sha=${SHA}"      >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push to GHCR
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -61,6 +61,10 @@ jobs:
             PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Probe condition
+        if: ${{ github.actor != 'nobody' }}
+        run: echo probe
 
       - name: Set package visibility to public
         # GHCR 新包默认 private；SoloHost 用户必须能匿名 pull，否则装不了
@@ -120,21 +124,3 @@ jobs:
             echo "  ❌ 匿名拉取失败 (HTTP ${CODE})"
             exit 1
           fi
-
-      - name: Build and push to Docker Hub
-        # Docker Hub 是 GHCR 的备用分发通道（国内网络 ghcr.io 被 SNI 封锁时用）
-        # 需要仓库 Secrets: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN / DOCKERHUB_IMAGE
-        if: ${{ secrets.DOCKERHUB_USERNAME != '' }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: |
-            docker.io/${{ secrets.DOCKERHUB_IMAGE }}:${{ steps.meta.outputs.version }}
-            docker.io/${{ secrets.DOCKERHUB_IMAGE }}:latest
-          build-args: |
-            PIPER_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx
-            PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
