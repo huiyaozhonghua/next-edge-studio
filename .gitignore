@@ -1,0 +1,9 @@
+# 本地开发副本（镜像名指向本地 tag）
+docker-compose.local.yml
+# Piper 模型（63MB，构建时从 HuggingFace 下载）
+app/models/*.onnx
+app/models/*.onnx.json
+# 凭据
+.env
+.env.*
+!.env.example

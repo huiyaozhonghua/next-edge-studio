@@ -1,0 +1,19 @@
+# 默认按文本处理，检出时统一为 LF（Windows 上 CRLF 会破坏 shell 脚本与 Dockerfile）
+* text=auto eol=lf
+
+# 二进制
+*.onnx binary
+*.onnx.json binary
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.wav binary
+
+# 明确指定
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
+*.html text eol=lf
+*.md text eol=lf

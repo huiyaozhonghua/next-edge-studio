@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Next Edge Studio · 本地成片工作台</title>
+<style>
+:root{
+  --bg:#0E1116; --panel:#161B22; --panel2:#1C2230; --line:#252C39;
+  --text:#E6EDF3; --sub:#8B98A9; --amber:#F2B705; --teal:#0D9488; --indigo:#374BB5;
+  --ok:#3FB950; --err:#F85149;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+button,input,select,textarea{font-family:inherit;font-size:14px}
+button{cursor:pointer;border:none;border-radius:8px;padding:9px 16px;font-weight:600;
+  transition:.15s;background:var(--panel2);color:var(--text)}
+button:hover:not(:disabled){background:#28303f}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:linear-gradient(135deg,var(--teal),var(--indigo));color:#fff}
+button.primary:hover:not(:disabled){filter:brightness(1.12)}
+button.ghost{background:transparent;border:1px solid var(--line)}
+button.danger{background:transparent;border:1px solid #4a2020;color:var(--err)}
+button.danger:hover{background:#2a1414}
+
+header{padding:20px 22px 14px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{width:40px;height:40px;border-radius:10px;flex:none;
+  background:linear-gradient(135deg,var(--teal),var(--indigo));
+  display:grid;place-items:center;font-weight:800;color:#fff;font-size:15px;letter-spacing:-.5px}
+h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.2px}
+.sub{color:var(--sub);font-size:12.5px;margin:1px 0 0}
+.spacer{flex:1}
+.tag{font-size:11.5px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--sub)}
+.tag.on{border-color:var(--teal);color:#5EEAD4}
+
+main{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 75px)}
+aside{border-right:1px solid var(--line);padding:18px;background:var(--panel)}
+section{padding:20px 24px;min-width:0}
+
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--sub);
+  margin:0 0 12px;font-weight:700}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+
+.drop{border:1.5px dashed #34404f;border-radius:12px;padding:26px 16px;text-align:center;
+  color:var(--sub);cursor:pointer;transition:.15s;background:#12161d}
+.drop:hover,.drop.hot{border-color:var(--teal);background:#132220;color:var(--text)}
+.drop b{display:block;color:var(--text);font-size:14px;margin-bottom:4px}
+
+.asset{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
+  background:var(--panel2);margin-bottom:6px;font-size:13px}
+.asset .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asset .kb{color:var(--sub);font-size:11px;font-variant-numeric:tabular-nums}
+.asset .ic{width:22px;height:22px;border-radius:5px;flex:none;display:grid;place-items:center;
+  font-size:10px;font-weight:700;color:#fff}
+.ic.img{background:var(--indigo)} .ic.vid{background:var(--teal)}
+.asset button{padding:3px 7px;font-size:12px;background:transparent;color:var(--sub)}
+.asset button:hover{color:var(--err)}
+
+.track{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:14px;margin-bottom:12px}
+.tk-head{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.tk-head .id{font-size:11px;font-weight:700;color:var(--amber);background:rgba(242,183,5,.12);
+  padding:2px 8px;border-radius:5px;font-family:ui-monospace,monospace}
+.tk-head .dur{margin-left:auto;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11.5px;color:var(--sub)}
+.field input,.field select,.field textarea{background:#0E1219;border:1px solid var(--line);
+  border-radius:7px;padding:8px 10px;color:var(--text);outline:none;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal)}
+.field.full{grid-column:1/-1}
+.field textarea{resize:vertical;min-height:56px;line-height:1.5}
+.row{display:flex;gap:8px;align-items:center}
+
+.bar{height:6px;background:#1c2430;border-radius:4px;overflow:hidden;margin:10px 0}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--indigo));
+  transition:width .35s;border-radius:4px}
+.msg{font-size:13px;color:var(--sub);min-height:20px}
+.msg.err{color:var(--err)} .msg.ok{color:var(--ok)}
+
+.log{background:#0A0D12;border:1px solid var(--line);border-radius:9px;padding:11px;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9FB0C3;
+  max-height:230px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.log:empty::after{content:"等待渲染…";color:#4C5666}
+
+video{width:100%;border-radius:11px;background:#000;display:block}
+.empty{text-align:center;padding:44px 20px;color:var(--sub)}
+.empty .big{font-size:34px;margin-bottom:10px;opacity:.4}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.hint{font-size:12px;color:var(--sub);margin-top:9px;line-height:1.65}
+.hint code{background:#0E1219;padding:1.5px 6px;border-radius:4px;font-size:11.5px;
+  color:#7DD3FC;font-family:ui-monospace,monospace}
+
+@media (max-width:860px){
+  main{grid-template-columns:1fr}
+  aside{border-right:none;border-bottom:1px solid var(--line)}
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NE</div>
+  <div>
+    <h1>Next Edge Studio</h1>
+    <p class="sub">本地成片工作台 · 素材不出你的机器</p>
+  </div>
+  <div class="spacer"></div>
+  <span class="tag" id="engTag">TTS —</span>
+  <span class="tag" id="privTag">离线优先</span>
+</header>
+
+<main>
+  <aside>
+    <h2>素材</h2>
+    <div class="drop" id="drop">
+      <b>点击或拖入照片 / 视频</b>
+      jpg png webp mp4 mov mkv webm
+      <input type="file" id="file" multiple accept="image/*,video/*" hidden>
+    </div>
+    <div id="assetList" style="margin-top:12px"></div>
+    <div class="hint">
+      全部文件只写进本机 <code>/data</code>，不会上传到任何服务器。
+    </div>
+  </aside>
+
+  <section>
+    <h2>时间线</h2>
+    <div id="tracks"></div>
+
+    <div class="actions">
+      <button class="ghost" id="addTrack">+ 加一段</button>
+      <button class="ghost" id="addCard">+ 加文字卡</button>
+      <div class="spacer"></div>
+      <button class="danger" id="reset">重置</button>
+      <button class="primary" id="render">开始渲染</button>
+    </div>
+
+    <div style="margin-top:22px">
+      <h2>渲染进度</h2>
+      <div class="box">
+        <div class="msg" id="msg">就绪</div>
+        <div class="bar"><i id="bar" style="width:0%"></i></div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:22px">
+      <h2>成片</h2>
+      <div class="box" id="outBox">
+        <div class="empty">
+          <div class="big">▶</div>
+          还没有成片。先传素材、排好时间线，点「开始渲染」。
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+let project = null, assets = [], polling = null;
+
+const ACCENTS = ['#F2B705','#0D9488','#374BB5','#F85149','#3FB950','#A371F7'];
+
+/* ---------------- API ---------------- */
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const ct = r.headers.get('content-type') || '';
+  const data = ct.includes('json') ? await r.json() : await r.text();
+  if (!r.ok) throw new Error((data && data.error) || ('HTTP ' + r.status));
+  return data;
+}
+const postJSON = (p, o) => api(p, {method:'POST', headers:{'Content-Type':'application/json'},
+  body: JSON.stringify(o||{})});
+
+/* ---------------- 渲染 ---------------- */
+function fmtBytes(n){ return n>1048576 ? (n/1048576).toFixed(1)+'MB' : Math.round(n/1024)+'KB'; }
+
+async function loadAssets() {
+  const d = await api('/api/assets');
+  assets = d.assets || [];
+  const box = $('#assetList');
+  if (!assets.length) { box.innerHTML = '<div class="hint">还没有素材</div>'; return; }
+  box.innerHTML = assets.map(a =>
+    `<div class="asset">
+       <div class="ic ${a.kind==='video'?'vid':'img'}">${a.kind==='video'?'▶':'▣'}</div>
+       <div class="nm" title="${a.name}">${a.name}</div>
+       <div class="kb">${fmtBytes(a.size)}</div>
+       <button data-del="${a.name}" title="删除">✕</button>
+     </div>`).join('');
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    await api('/api/assets/' + encodeURIComponent(b.dataset.del), {method:'DELETE'});
+    loadAssets();
+  });
+}
+
+async function loadProject() {
+  const d = await api('/api/project');
+  project = d.project;
+  renderTracks();
+}
+
+function renderTracks() {
+  const box = $('#tracks');
+  if (!project || !project.tracks.length) {
+    box.innerHTML = '<div class="box"><div class="hint">时间线是空的。加一段，或先传素材。</div></div>';
+    return;
+  }
+  const imgOpts = assets.filter(a=>a.kind==='image').map(a=>a.name);
+  const vidOpts = assets.filter(a=>a.kind==='video').map(a=>a.name);
+  box.innerHTML = project.tracks.map((t,i) => {
+    const opts = t.type==='card' ? [] : (t.type==='video' ? vidOpts : imgOpts);
+    const sel = (list) => {
+      const all = ['（无）', ...list];
+      const cur = t.src ? String(t.src).split('/').pop() : '（无）';
+      return all.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('');
+    };
+    if (t.type === 'card') {
+      return `<div class="track" data-i="${i}">
+        <div class="tk-head"><span class="id">${t.id}</span>
+          <select data-k="type" style="background:#0E1219;border:1px solid var(--line);
+            border-radius:7px;padding:5px 8px;color:var(--text)">
+            <option value="card" selected>文字卡</option>
+            <option value="photo">照片</option>
+            <option value="video">视频</option>
+          </select>
+          <span class="dur">${t.dur.toFixed(1)}s</span></div>
+        <div class="grid">
+          <div class="field"><label>小标题</label>
+            <input data-k="kicker" value="${esc(t.kicker||'')}"></div>
+          <div class="field"><label>主标题</label>
+            <input data-k="title" value="${esc(t.title||'')}"></div>
+          <div class="field full"><label>正文</label>
+            <input data-k="sub" value="${esc(t.sub||'')}"></div>
+          <div class="field full"><label>旁白（会配字幕）</label>
+            <textarea data-k="vo">${esc(t.vo||'')}</textarea></div>
+        </div>
+        <div class="actions">
+          <button class="ghost" data-act="dur">时长 +0.5s</button>
+          <button class="ghost" data-act="color">换色</button>
+          <button class="danger" data-act="del">删除</button>
+        </div></div>`;
+    }
+    return `<div class="track" data-i="${i}">
+      <div class="tk-head"><span class="id">${t.id}</span>
+        <select data-k="type" style="background:#0E1219;border:1px solid var(--line);
+          border-radius:7px;padding:5px 8px;color:var(--text)">
+          <option value="photo" ${t.type==='photo'?'selected':''}>照片</option>
+          <option value="video" ${t.type==='video'?'selected':''}>视频</option>
+          <option value="card" >文字卡</option>
+        </select>
+        <span class="dur">${t.dur.toFixed(1)}s</span></div>
+      <div class="grid">
+        <div class="field"><label>素材</label>
+          <select data-k="src">${sel(opts)}</select></div>
+        <div class="field"><label>时长（秒）</label>
+          <input type="number" step="0.5" min="1" data-k="dur" value="${t.dur}"></div>
+        <div class="field"><label>小标题</label>
+          <input data-k="kicker" value="${esc(t.kicker||'')}"></div>
+        <div class="field"><label>主标题</label>
+          <input data-k="title" value="${esc(t.title||'')}"></div>
+        <div class="field full"><label>副标题</label>
+          <input data-k="sub" value="${esc(t.sub||'')}"></div>
+        <div class="field full"><label>旁白（会配字幕）</label>
+          <textarea data-k="vo">${esc(t.vo||'')}</textarea></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" data-act="dur">时长 +0.5s</button>
+        <button class="ghost" data-act="color">换色</button>
+        <button class="danger" data-act="del">删除</button>
+      </div></div>`;
+  }).join('');
+
+  box.querySelectorAll('.track').forEach(el => {
+    const i = +el.dataset.i, t = project.tracks[i];
+    el.querySelectorAll('[data-k]').forEach(inp => {
+      inp.onchange = () => {
+        const k = inp.dataset.k;
+        if (k === 'type') {
+          const nv = inp.value;
+          t.type = nv;
+          if (nv === 'card') { delete t.src; t.cells = t.cells || [['01','第一件事','说明'],['02','第二件事','说明'],['03','第三件事','说明']]; }
+          else if (!t.src) t.src = '';
+          renderTracks();
+        } else if (k === 'dur') { t.dur = Math.max(1, parseFloat(inp.value)||4); renderTracks(); }
+        else if (k === 'src') { const v = inp.value; t.src = (v==='（无）') ? '' : (t.type==='video' ? 'assets/'+v : 'assets/'+v); }
+        else t[k] = inp.value;
+      };
+    });
+    el.querySelectorAll('[data-act]').forEach(b => {
+      b.onclick = () => {
+        const a = b.dataset.act;
+        if (a === 'del') { project.tracks.splice(i,1); }
+        else if (a === 'dur') { t.dur = Math.min(60, +(t.dur + 0.5).toFixed(1)); }
+        else if (a === 'color') {
+          const cur = ACCENTS.indexOf(t.accent || ACCENTS[0]);
+          t.accent = ACCENTS[(cur+1) % ACCENTS.length];
+        }
+        renderTracks();
+      };
+    });
+  });
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function saveProject() {
+  try { await postJSON('/api/project', project); return true; }
+  catch(e){ setMsg('保存失败：' + e.message, 'err'); return false; }
+}
+
+function setMsg(t, cls){ const m=$('#msg'); m.textContent=t; m.className='msg'+(cls?' '+cls:''); }
+
+/* ---------------- 进度轮询 ---------------- */
+function startPolling() {
+  if (polling) return;
+  polling = setInterval(async () => {
+    try {
+      const d = await api('/api/status');
+      const s = d.status || {};
+      setMsg(s.message || s.state, s.state==='failed'?'err':(s.state==='done'?'ok':''));
+      $('#bar').style.width = (s.progress||0) + '%';
+      $('#log').textContent = (s.log||[]).join('\n');
+      const lb = $('#log'); lb.scrollTop = lb.scrollHeight;
+      if (s.state === 'done') { showOutput(s.output); stopPolling(); }
+      if (s.state === 'failed') stopPolling();
+    } catch(e){}
+  }, 900);
+}
+function stopPolling(){ if(polling){ clearInterval(polling); polling=null; } }
+
+function showOutput(info){
+  if(!info || !info.output) return;
+  $('#outBox').innerHTML =
+    `<video controls playsinline src="/api/output/${info.output}"></video>
+     <div class="actions"><a href="/api/output/${info.output}" download="next-edge-studio.mp4">
+       <button class="primary">下载成片</button></a></div>
+     <div class="hint">${info.duration||'?'} 秒 · ${fmtBytes(info.size||0)}</div>`;
+}
+
+/* ---------------- 上传 ---------------- */
+const drop = $('#drop');
+drop.onclick = () => $('#file').click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('hot'); };
+drop.ondragleave = () => drop.classList.remove('hot');
+drop.ondrop = e => {
+  e.preventDefault(); drop.classList.remove('hot');
+  upload([...e.dataTransfer.files]);
+};
+$('#file').onchange = e => upload([...e.target.files]);
+
+async function upload(files){
+  if(!files.length) return;
+  const fd = new FormData();
+  files.forEach(f => fd.append('file', f, f.name));
+  setMsg('上传中…');
+  try{
+    const d = await api('/api/upload', {method:'POST', body:fd});
+    const skipped = (d.skipped||[]).map(s=>s.name+'（'+s.reason+'）');
+    setMsg('已上传 ' + (d.saved||[]).length + ' 个文件' + (skipped.length?' · 跳过 '+skipped.join(', '):''),
+           'ok');
+    await loadAssets();
+  }catch(e){ setMsg('上传失败：'+e.message, 'err'); }
+}
+
+/* ---------------- 操作 ---------------- */
+$('#addTrack').onclick = () => {
+  const n = project.tracks.length + 1;
+  project.tracks.push({id:'P'+n, type:'photo', src:'', dur:4.0, kicker:'NEXT EDGE',
+    title:'新的一段', sub:'改文案、换素材', accent:ACCENTS[n%ACCENTS.length],
+    overlay:'default', fade_in:0, fade_out:0, vo:''});
+  renderTracks();
+};
+$('#addCard').onclick = () => {
+  const n = project.tracks.length + 1;
+  project.tracks.push({id:'C'+n, type:'card', dur:3.5, kicker:'KEY POINTS',
+    title:'三件事', cells:[['01','第一件事','说明'],['02','第二件事','说明'],['03','第三件事','说明']],
+    vo:''});
+  renderTracks();
+};
+$('#reset').onclick = async () => {
+  if(!confirm('重置时间线？已上传的素材会保留。')) return;
+  const d = await postJSON('/api/reset');
+  project = d.project; renderTracks(); setMsg('已重置');
+};
+$('#render').onclick = async () => {
+  if(!await saveProject()) return;
+  try{
+    setMsg('排队中…');
+    await postJSON('/api/render');
+    $('#bar').style.width='3%';
+    startPolling();
+  }catch(e){ setMsg('无法启动渲染：'+e.message,'err'); }
+};
+
+/* ---------------- 初始化 ---------------- */
+(async function(){
+  try{
+    const st = await api('/api/state');
+    $('#engTag').textContent = 'TTS ' + (st.voice_engine||'—');
+    $('#engTag').classList.add('on');
+  }catch(e){}
+  await loadAssets();
+  await loadProject();
+})();
+</script>
+</body>
+</html>

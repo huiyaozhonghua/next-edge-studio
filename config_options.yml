@@ -1,0 +1,69 @@
+title: Next Edge Studio
+eyebrow: SoloHost App
+description: |
+  Turn photos and vertical phone videos into a finished clip with Chinese narration
+  and burned-in subtitles. Everything runs on your own machine — your footage never
+  leaves it, and no cloud service is involved.
+
+  Pick a narration engine. Piper runs fully offline with a bundled Chinese voice.
+  Edge TTS sounds more natural but needs internet access.
+
+  Upload your footage, arrange the timeline, write the narration, press render.
+  The clip is produced in your container and can be previewed and downloaded here.
+output_file: .env
+after_save: >
+  Saved. Install / redeploy the package to apply. Open the app in Pi Desktop to start.
+
+fixed_values:
+  - name: APP_MODE
+    value: "production"
+
+fields:
+  - name: TTS_ENGINE
+    label: Narration engine
+    type: select
+    default: piper
+    help: Piper runs fully offline with a bundled Chinese voice. Edge TTS needs internet but sounds more natural.
+    env_comment: Which text-to-speech engine produces the narration.
+    options:
+      - value: piper
+        label: Piper (offline, Chinese)
+      - value: edge
+        label: Edge TTS (online, natural)
+      - value: none
+        label: No narration
+
+  - name: PIPER_VOICE
+    label: Piper voice model
+    type: hidden
+    default: "zh_CN-huayan-medium"
+    env_comment: Bundled offline Chinese voice model.
+
+  - name: EDGE_VOICE
+    label: Edge TTS voice
+    type: select
+    default: zh-CN-YunyangNeural
+    help: Only used when the engine is Edge TTS.
+    env_comment: Edge TTS voice name.
+    visible_if:
+      field: TTS_ENGINE
+      in: [edge]
+    options:
+      - value: zh-CN-YunyangNeural
+        label: Yunyang (male)
+      - value: zh-CN-XiaoxiaoNeural
+        label: Xiaoxiao (female)
+      - value: zh-CN-YunxiNeural
+        label: Yunxi (male, younger)
+
+  - name: SUBTITLE_STYLE
+    label: Subtitle style
+    type: select
+    default: bottom
+    help: How narration subtitles are burned into the clip.
+    env_comment: Subtitle rendering style.
+    options:
+      - value: bottom
+        label: Bottom bar
+      - value: none
+        label: No subtitles
