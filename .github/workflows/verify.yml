@@ -3,8 +3,10 @@ name: Verify published package
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["Build and Push Next Edge Studio image"]
-    types: [completed]
+    workflows:
+      - 'Build and Push Next Edge Studio image'
+    types:
+      - completed
 
 jobs:
   verify:
