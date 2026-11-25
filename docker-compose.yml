@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/zjh18981927828/next-edge-studio:1.0.0
+    image: ghcr.io/huiyaozhonghua/next-edge-studio:1.0.0
     restart: unless-stopped
     labels:
       pi.ui.primary: "true"
@@ -20,7 +20,7 @@ services:
       - worker
 
   worker:
-    image: ghcr.io/zjh18981927828/next-edge-studio:1.0.0
+    image: ghcr.io/huiyaozhonghua/next-edge-studio:1.0.0
     restart: unless-stopped
     command: ["python3", "/app/worker.py"]
     environment:

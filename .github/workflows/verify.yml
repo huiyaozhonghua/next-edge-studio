@@ -1,0 +1,60 @@
+name: Verify published package
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build and Push Next Edge Studio image"]
+    types: [completed]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+      contents: read
+    steps:
+      - name: Verify package exists and is public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_NAME: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          PKG="${IMAGE_NAME##*/}"
+          OWNER="${IMAGE_NAME%%/*}"
+          echo "Checking ghcr.io/$OWNER/$PKG ..."
+
+          # 1) 用 GITHUB_TOKEN 查包（GITHUB_TOKEN 自带 packages:read）
+          echo "--- package metadata ---"
+          gh api "/users/${OWNER}/packages/container/${PKG}" \
+            --jq '"name: \(.name)\nvisibility: \(.visibility)\ntype: \(.package_type)"' || true
+
+          # 2) 匿名拉取 manifest —— 这才是「用户能装」的关键
+          echo "--- anonymous manifest access (no token) ---"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json" \
+            "https://ghcr.io/v2/${OWNER}/${PKG}/manifests/latest")
+          echo "  latest manifest -> HTTP ${CODE}"
+
+          # 3) 列出所有 tag
+          echo "--- available tags ---"
+          TOKEN=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${OWNER}/${PKG}:pull" \
+            | python3 -c "import sys,json;print(json.load(sys.stdin).get('token',''))")
+          if [ -n "$TOKEN" ]; then
+            TAGS=$(curl -s -H "Authorization: Bearer ${TOKEN}" \
+              -H "Accept: application/vnd.oci.image.index.v1+json" \
+              "https://ghcr.io/v2/${OWNER}/${PKG}/tags/list" \
+              | python3 -c "import sys,json;d=json.load(sys.stdin);print(', '.join(d.get('tags') or ['(空)']))" 2>/dev/null || echo "(取不到)")
+            echo "  tags: ${TAGS}"
+          fi
+
+          # 4) 结论
+          echo "--- verdict ---"
+          if [ "${CODE}" = "200" ]; then
+            echo "  ✅ 匿名可拉 —— 任何 Pi 节点用户都能安装"
+          elif [ "${CODE}" = "401" ]; then
+            echo "  ❌ 匿名拉取被拒 —— 包还是 Private"
+            echo "     手动改：https://github.com/users/${OWNER}/packages → ${PKG} → Package settings → Danger Zone → Public"
+            exit 1
+          else
+            echo "  ⚠️  HTTP ${CODE}"
+          fi

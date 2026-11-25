@@ -2,7 +2,7 @@
 #
 # 构建（本网络阻断明文 HTTP 的 debian 源，且需走代理）：
 #   HTTP_PROXY=http://127.0.0.1:17891 HTTPS_PROXY=http://127.0.0.1:17891 \
-#   docker build -t ghcr.io/zjh18981927828/next-edge-studio:1.0.0 .
+#   docker build -t ghcr.io/huiyaozhonghua/next-edge-studio:1.0.0 .
 #
 # 体积参考（实测）：
 #   全量 chromium + 全套 CJK 字体        1.58 GB
